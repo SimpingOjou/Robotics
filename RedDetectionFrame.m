@@ -26,50 +26,49 @@ robot.move_j(0,-90,0,0);
 cw = 0;
 pause(2);
 
-    try
-        videoFrame = snapshot(cam);
-        %videoFrameGray = rgb2gray(videoFrame);
-        %bbox = faceDetector.step(videoFrameGray,face_detect_bbox_rectangle);
-        bbox = faceDetector.step(videoFrame);
+try
+    videoFrame = snapshot(cam);
+    %videoFrameGray = rgb2gray(videoFrame);
+    %bbox = faceDetector.step(videoFrameGray,face_detect_bbox_rectangle);
+    bbox = faceDetector.step(videoFrame);
 
-        if ~isempty(bbox)
-            bboxPoints = bbox2points(bbox(1, :));
+    if ~isempty(bbox)
+        bboxPoints = bbox2points(bbox(1, :));
+        % Convert the box corners into the [x1 y1 x2 y2 x3 y3 x4 y4]
+        % format required by insertShape.
 
-            % Convert the box corners into the [x1 y1 x2 y2 x3 y3 x4 y4]
-            % format required by insertShape.
+        bboxPolygon = reshape(bboxPoints', 1, []);
+        center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
 
-            bboxPolygon = reshape(bboxPoints', 1, []);
-            center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
+        face_detect_bbox_color = "green";
+        dists = get_distances(center, frame_middle);
+        % Display a bounding box around the detected face.
+        videoFrame = insertShape(videoFrame, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
+        videoFrame = insertShape(videoFrame, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
+        videoFrame = insertShape(videoFrame, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");
+        delta_j1 = (frame_middle(1)-center(1))/30;
+        delta_j4 = (frame_middle(2)-center(2))/30;
 
-            face_detect_bbox_color = "green";
-            dists = get_distances(center, frame_middle);
-            % Display a bounding box around the detected face.
-            videoFrame = insertShape(videoFrame, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
-            videoFrame = insertShape(videoFrame, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
-            videoFrame = insertShape(videoFrame, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");
-            delta_j1 = (frame_middle(1)-center(1))/30;
-            delta_j4 = (frame_middle(2)-center(2))/30;
-
-            try
-                robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4)+delta_j4);
-            catch ME
-                disp(ME.message);
-            end
-
+        try
+            robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4)+delta_j4);
+        catch ME
+            disp(ME.message);
         end
 
-        % Display the annotated video frame using the video player object.
-        step(videoPlayer, videoFrame);
-
-        % Check whether the video player window has been closed.
-        runLoop = isOpen(videoPlayer);
-        if ~runLoop
-            % Clean up.
-            release(videoPlayer);
-            release(faceDetector);
-            robot.disable_motors();
-        end
     end
+
+    % Display the annotated video frame using the video player object.
+    step(videoPlayer, videoFrame);
+
+    % Check whether the video player window has been closed.
+    runLoop = isOpen(videoPlayer);
+    if ~runLoop
+        % Clean up.
+        release(videoPlayer);
+        release(faceDetector);
+        robot.disable_motors();
+    end
+end
 
 
 
