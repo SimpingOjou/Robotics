@@ -100,7 +100,7 @@ while true
     
                 try
                     robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-                    robot.move_j(robot.joint_angles(1),robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4)+delta_j4);
+                    robot.move_j(robot.joint_angles(1),robot.joint_angles(2),robot.joint_angles(3)+delta_j4,robot.joint_angles(4));
     
                 catch ME
                     disp(ME.message);
