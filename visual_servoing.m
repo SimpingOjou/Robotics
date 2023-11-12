@@ -1,16 +1,12 @@
-a = imaqhwinfo;
-% [camera_name, camera_id, format] = getCameraInfo(a);
 % Capture the video frames using the videoinput function
 % You have to replace the resolution & your installed adaptor name.
-vid = videoinput('winvideo', '1');
+vid = videoinput('winvideo', '1', 'MJPG_640x480');
+%vid = webcam(1);
 % Set the properties of the video object
 set(vid, 'FramesPerTrigger', Inf);
 set(vid, 'ReturnedColorspace', 'rgb')
-vid.FrameGrabInterval = 1;
-%start the video aquisition here
+vid.FrameGrabInterval = 2;
 start(vid)
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 x_res = 640;
 y_res = 480;
 frame_middle = [x_res/2,y_res/2];
@@ -18,28 +14,22 @@ detect_bbox_rectangle = [x_res-2,y_res-2,x_res-2,y_res-2];
 detect_bbox = reshape(bbox2points(detect_bbox_rectangle)', 1, []);
 
 videoPlayer = vision.VideoPlayer
-
+% Capture one frame to get its size.
+%videoFrame = snapshot(vid);
+%frameSize = size(videoFrame);
+%videoPlayer = vision.VideoPlayer('Position', [200 200 [frameSize(2), frameSize(1)]+30]);
 
 %Init Robot
 robot = MyRobot();
+robot.move_j(70,-90,-50,-100);
 assert(robot.is_robot_connected(),"Robot not connected properly");
-robot.move_j(0,-90,0,-90);
-cw = 0;
-pause(2);
 
 while true  
-        disp('here')
-    % % % %         videoFrame = snapshot(cam);
-    % % % %         videoFrameGray = rgb2gray(videoFrame);
-    % % % %         %bbox = faceDetector.step(videoFrameGray,face_detect_bbox_rectangle);
-    % % % %         bbox = faceDetector.step(videoFrame);
-                    % Get the snapshot of the current frame
+    try
+        % Get the snapshot of the current frame
         data = getsnapshot(vid);
+        %data = snapshot(vid);
         data2 = data;
-    
-        %%%%%%%%%%%%%%%%%%%%%%
-        
-        %%%%%%%%%%%%%%%%%%%%%
         
         % Now to track red objects in real time
         % we have to subtract the red component 
@@ -59,94 +49,50 @@ while true
         % Here we do the image blob analysis.
         % We get a set of properties for each labeled region.
         stats = regionprops(bw, 'BoundingBox', 'Centroid');
-        
-        % Display the image
-        %imshow(data)
-        
-        % hold on
 
-                    %This is a loop to bound the red objects in a rectangular box.
-            for object = 1:length(stats)
-                bb = stats(object).BoundingBox;
-                bc = stats(object).Centroid;
-                rectangle('Position',bb,'EdgeColor','r','LineWidth',2)
-                plot(bc(1),bc(2), '-m+')
-                a=text(bc(1)+15,bc(2), strcat('X: ', num2str(round(bc(1))), '    Y: ', num2str(round(bc(2)))));
-                set(a, 'FontName', 'Arial', 'FontWeight', 'bold', 'FontSize', 12, 'Color', 'yellow');
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                bbox = bb
+        %This is a loop to bound the red objects in a rectangular box.
+        for object = 1:length(stats)
+            bbox = stats(object).BoundingBox;
+
+            if ~isempty(bbox)
                 bboxPoints = bbox2points(bbox(1, :));
-        
-                % Convert the box corners into the [x1 y1 x2 y2 x3 y3 x4 y4]
-                % format required by insertShape.
-        
+
                 bboxPolygon = reshape(bboxPoints', 1, []);
                 center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
-        
-                detect_bbox_color = "green";
-                dists = get_distances(center, frame_middle);
+
                 % Display a bounding box around the detected face.
                 data2 = insertShape(data2, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
                 data2 = insertShape(data2, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
                 data2 = insertShape(data2, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");
-                delta_j1 = (frame_middle(1)-center(1))/100;
-                delta_j4 = (frame_middle(2)-center(2))/100; %distance from center to box
-        
-        
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-             
-        
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-                try
-                    robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-                    robot.move_j(robot.joint_angles(1),robot.joint_angles(2),robot.joint_angles(3)+delta_j4,robot.joint_angles(4));
-    
-                catch ME
-                    disp(ME.message);
-                end
-            %
+                % delta_j1 = (frame_middle(1)-center(1))/50;
+                % delta_j4 = (frame_middle(2)-center(2))/50;
+                % 
+                % try
+                %     robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
+                %     robot.move_j(robot.joint_angles(1),robot.joint_angles(2),robot.joint_angles(3)+delta_j4,robot.joint_angles(4));
+                % catch ME
+                %     disp(ME.message);
+                % end
             end
-
-            % Display the annotated video frame using the video player object.
-            
-    % % %     step(videoPlayer, videoFrame);
+        end
+        
+        % Display the annotated video frame using the video player object.
         step(videoPlayer, data2);
-    
+        flushdata(vid);
         % Check whether the video player window has been closed.
         runLoop = isOpen(videoPlayer);
         if ~runLoop
+            robot.move_j(0,-90,0,0);
             break
         end
-
-        %flushdata(vid);
+    end
 end
 
-stop(vid);
-flushdata(vid);
-clearvars -global
 % Clean up.
+stop(vid);
+clearvars -global
 release(videoPlayer);
-%release(faceDetector);
 robot.disable_motors();
-
-
-
-function cw = jog_robot_z(cw,robot)
-    if robot.joint_angles(1) == -130
-        cw = 1;
-    elseif robot.joint_angles(1) == 130
-        cw = 0; 
-    end
-    
-    if ~cw
-       robot.move_j(robot.joint_angles(1)-10,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-    else
-        robot.move_j(robot.joint_angles(1)+10,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-    end
-
-end
-
 
 function dists = get_distances(center, frame_middle)
     x_dist = frame_middle(1) - center(1);
@@ -158,14 +104,30 @@ function center = get_center(bboxPolygon)
     x = floor((bboxPolygon(1) + bboxPolygon(3)) /2);
     y = floor((bboxPolygon(2) + bboxPolygon(4)) /2);
     center = [x,y];
-
 end
 
-function inside = face_inside_bbox(center, frame_middle)
-    if abs(frame_middle(1) - center(1)) < frame_middle(1) && abs(frame_middle(2) - center(2)) < frame_middle(2)
-        inside = 1;
-    else
-        inside = 0;
-    end
-end
+% function depth = get_depth()
+%     % Distance: Z = f*B/d %uso la media
+%     % Where f is focal length, B is baseline (c1 c2 distance)
+%     % d is disparity (horizontal offset of the pointed object)
+% 
+%     % Given values
+%     baselineLength = 0.1; % Baseline length in meters
+%     disparity = 20; % Disparity in pixels
+%     % Focal length in pixels (or use a real-world value in meters)
+%     focalLength_px = 1430;
+%     %focalLength_m = 4e-3; %from Logitech HD Webcam C270 
+% 
+%     % Calculate distance
+%     depth = (focalLength_px * baselineLength) / disparity;
+% 
+%     %This approach assumes that the scene is at the same depth for both 
+%     % points. If this assumption does not hold, a more complex calibration 
+%     % or depth estimation method might be needed. Also, this is a 
+%     % simplified example, and in practice, stereo vision systems are often 
+%     % calibrated to obtain more accurate results.
+% end
 
+function depth = get_depth(robot, vid)
+    
+end

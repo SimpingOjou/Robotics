@@ -115,7 +115,7 @@ classdef MyRobot < handle
 
                 self.set_speed([0.1,0.1,0.1,0.1],true);
                 self.set_torque_limit([1,1,1,1]);
-                self.move_j(0,-90,0,0);
+                self.move_j(70,-90,-50,-100)
                 self.init_status = 1;
             catch ME
                 disp(ME.message);
@@ -514,12 +514,13 @@ classdef MyRobot < handle
             %   j_a : a vector containing joint angles [deg]
             
             j1 = atan2(y,x);
-            j3 = acos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
+            j3 = cos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
             if ~isreal(j3) || ~(rad2deg(j3)>=self.joint_limits(3,1) && rad2deg(j3)<=self.joint_limits(3,2))
                 fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
                 j3 = atan2(j3,-sqrt(1-j3^2));
             end
             assert(isreal(j3),"Configuration Impossible");
+            % j2 = atan2(s,r) = atan2(z-d-a*sin(pitch), )
             j2 = -atan2(z-self.dh(1,3)-self.dh(4,1)*sin(pitch),sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch)) - atan2(self.dh(3,1)+self.dh(2,1)*cos(j3),self.dh(2,1)*sin(j3)) + (pi/2-j3);
             j4 = pitch - j2 - j3;
             
