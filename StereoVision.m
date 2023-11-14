@@ -10,20 +10,18 @@ videoPlayer = vision.VideoPlayer;
 % Init Robot
 robot = MyRobot();
 assert(robot.is_robot_connected(),"Robot not connected properly");
-
 %%%%%%%%%% STEREO VISION %%%%%%%%%%
-robot.move_j(80,-90,-50,-100);
-pause(2)
+robot.move_j(0,-30,-60,0);
+pause(2);
 Pose_left = robot.joint_pos;
 img_left = getsnapshot(vid);
 pause(2);
 
-robot.move_j(60,-90,-50,-100);
+%robot.move_j(60,-90,-50,-100);
 pause(2)
 Pose_right = robot.joint_pos;
 img_right = getsnapshot(vid);
 pause(2);
-
 %%%%%%%%%% RED RECOGNITION %%%%%%%%%%
 x_res = 640;
 y_res = 480;
@@ -120,10 +118,15 @@ figure;
 imshow(depthMap, []);
 
 %%%%%%%%%% CLEAN UP %%%%%%%%%%
-stop(vid);
-flushdata(vid);
-clear vid;
-clearvars -global
-release(videoPlayer);
-robot.move_j(0,-90,0,0);
-robot.disable_motors();
+while (1)
+    if ~isOpen(videoPlayer)
+        stop(vid);
+        flushdata(vid);
+        clear vid;
+        clearvars -global
+        release(videoPlayer);
+        robot.move_j(0,-90,0,0);
+        robot.disable_motors();
+        clear all;
+    end
+end
