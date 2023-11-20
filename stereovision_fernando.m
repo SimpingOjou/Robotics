@@ -57,8 +57,8 @@ for obj = 1:length(stats)
          % camera_height = 0.125; % meters
          % fov = 60 % degrees
 
-         px_m_ratio = 1 % whatever we find with the ruler
-         obj_distance_m = [distance_center_px(1)*px_m_ratio, distance_center_px(2)*px_m_ratio]
+         px_m_ratio = (10,5) % whatever we find with the ruler on x and y
+         obj_distance_m = [distance_center_px(1)*px_m_ratio(1), distance_center_px(2)*px_m_ratio(2)]
 
          %%%%%%%%%% INVERSE KINEMATICS %%%%%%%%%%
          robot.move_c(x+obj_distance_m(1),y+obj_distance_m(2),z,0); % check xyz coordinates with robot.draw()
