@@ -45,7 +45,7 @@ classdef MyRobot < handle
         ADDR_MX_PRESENT_POSITION    = 36;           % Control table address for reading current position
         PROTOCOL_VERSION            = 1.0;          % See which protocol version is used in the Dynamixel
         BAUDRATE                    = 1000000;      % Baudrate for Motors
-        DEVICENAME                  = 'COM5';       % Check which port is being used on your controller
+        DEVICENAME                  = 'COM7';       % Check which port is being used on your controller
         % ex) Windows: 'COM1'   Linux: '/dev/ttyUSB0' Mac: '/dev/tty.usbserial-*'
         TORQUE_ENABLE               = 1;            % Value for enabling the torque
         TORQUE_DISABLE              = 0;            % Value for disabling the torque
@@ -69,16 +69,17 @@ classdef MyRobot < handle
         use_smooth_speed_flag = 0;                  % Flag for using smooth speed 
         gripper_open_flag = 1;                      % Flag for gripper status
         rbt = 0;                                    % RigidBodyTree        
-        joint_limits = [-130 130; -180 0; -100 100; -100 100]; %Joint Limits in degree        
+        joint_limits = [-210 55; -125 125; -125 125; -35 145]; %Joint Limits in degree CHECK J1 Because not working properly       
         ik = 0;                                     % Inverse Kinematics Object
         ik_weights = [0.25 0.25 0.25 1 1 1];        % Weights for inverse kinematics 
-        joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor
+        %joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor. To calibrate
+        joint_offsets = [240 150 150 150];
         joint_angle_error = [0 0 0 0];              % Internal joint angle error between read out of joint angles and input joint angles
         init_status = 0;                            % Initialization succesfull flag
         movement_history = [];                      % List to record movement history
         motor_speed = 0;                            % List for motor speed
         motor_torque = 0;                           % List for motor torque
-        pitch = 0;                                  % Pitch Angle for motor 3
+        pitch = 0;                                 % Pitch Angle for motor 3
    
     end
     methods
@@ -115,7 +116,8 @@ classdef MyRobot < handle
 
                 self.set_speed([0.1,0.1,0.1,0.1],true);
                 self.set_torque_limit([1,1,1,1]);
-                self.move_j(0,-90,0,0);
+                %self.move_j(70,-90,-50,-100);
+                %self.move_j(90,0,0,0); %erect
                 self.init_status = 1;
             catch ME
                 disp(ME.message);
@@ -514,12 +516,13 @@ classdef MyRobot < handle
             %   j_a : a vector containing joint angles [deg]
             
             j1 = atan2(y,x);
-            j3 = acos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
+            j3 = cos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
             if ~isreal(j3) || ~(rad2deg(j3)>=self.joint_limits(3,1) && rad2deg(j3)<=self.joint_limits(3,2))
                 fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
                 j3 = atan2(j3,-sqrt(1-j3^2));
             end
             assert(isreal(j3),"Configuration Impossible");
+            % j2 = atan2(s,r) = atan2(z-d-a*sin(pitch), )
             j2 = -atan2(z-self.dh(1,3)-self.dh(4,1)*sin(pitch),sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch)) - atan2(self.dh(3,1)+self.dh(2,1)*cos(j3),self.dh(2,1)*sin(j3)) + (pi/2-j3);
             j4 = pitch - j2 - j3;
             
@@ -650,6 +653,3 @@ classdef MyRobot < handle
 
     end
 end
-
-
-
