@@ -155,3 +155,4 @@ title('Image2');
         robot.move_j(0,-90,0,0);
         robot.disable_motors();
         clear all;
+        
