@@ -1,171 +1,160 @@
-a = imaqhwinfo;
-% [camera_name, camera_id, format] = getCameraInfo(a);
-% Capture the video frames using the videoinput function
-% You have to replace the resolution & your installed adaptor name.
-vid = videoinput('winvideo', '1');
-% Set the properties of the video object
+%%%%%%%%%% INITIALIZATION %%%%%%%%%%
+% Init webcam
+vid = videoinput('winvideo', '2', 'MJPG_640x480');
 set(vid, 'FramesPerTrigger', Inf);
-set(vid, 'ReturnedColorspace', 'rgb')
-vid.FrameGrabInterval = 1;
-%start the video aquisition here
-start(vid)
+set(vid, 'ReturnedColorspace', 'rgb');
+vid.FrameGrabInterval = 2;
+start(vid);
+videoPlayer = vision.VideoPlayer;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Init Robot
+robot = MyRobot();
+assert(robot.is_robot_connected(),"Robot not connected properly");
+%%%%%%%%%% IMAGE ACQUISITION %%%%%%%%%%
+robot.move_j(0,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img = getsnapshot(vid);
+pause(2);
+
+%image 2
+robot.move_j(-45,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img2 = getsnapshot(vid);
+pause(2);
+
+%image 3
+
+robot.move_j(-90,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img3 = getsnapshot(vid);
+pause(2);
+
+%Image4
+robot.move_j(-135,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img4 = getsnapshot(vid);
+pause(2);
+
+%image 5
+robot.move_j(-180,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img5 = getsnapshot(vid);
+pause(2);
+
+
+%%%%%%%%%% RED RECOGNITION %%%%%%%%%%
 x_res = 640;
 y_res = 480;
 frame_middle = [x_res/2,y_res/2];
-detect_bbox_rectangle = [x_res-2,y_res-2,x_res-2,y_res-2];
-detect_bbox = reshape(bbox2points(detect_bbox_rectangle)', 1, []);
 
-videoPlayer = vision.VideoPlayer
+% Subtraction red component from grayscale image to extract red
+diff_im = imsubtract(img(:,:,1), rgb2gray(img));
+%Use a median filter to filter out noise
+diff_im = medfilt2(diff_im, [3 3]);
+% Convert the resulting grayscale image into a binary image.
+diff_im = imbinarize(diff_im,0.25);
+% Remove all those pixels less than 50px
+diff_im = bwareaopen(diff_im,50);
+% Label all the connected components in the image
+bw = bwlabel(diff_im, 8);
+% Image blob analysis
+stats = regionprops(bw, 'BoundingBox', 'Centroid');
 
+% Bound red objects in rectangular box
+for obj = 1:length(stats)
+     bbox = stats.BoundingBox;
 
-%Init Robot
-robot = MyRobot();
-assert(robot.is_robot_connected(),"Robot not connected properly");
-robot.move_j(0,-90,0,-90);
-cw = 0;
-pause(2);
+     if ~isempty(bbox)
+         % Display a bounding box around the detected red.
+         bboxPoints = bbox2points(bbox(1, :));
+         bboxPolygon = reshape(bboxPoints', 1, []);
+         center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
+         img = insertShape(img, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
+         img = insertShape(img, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
+         img = insertShape(img, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");       
+     
+         distance_center = [abs(frame_middle(1)-center(1)), abs(frame_middle(2)-center(2))]
+     end
 
-while true  
-        disp('here')
-    % % % %         videoFrame = snapshot(cam);
-    % % % %         videoFrameGray = rgb2gray(videoFrame);
-    % % % %         %bbox = faceDetector.step(videoFrameGray,face_detect_bbox_rectangle);
-    % % % %         bbox = faceDetector.step(videoFrame);
-                    % Get the snapshot of the current frame
-        data = getsnapshot(vid);
-        data2 = data;
-    
-        %%%%%%%%%%%%%%%%%%%%%%
-        
-        %%%%%%%%%%%%%%%%%%%%%
-        
-        % Now to track red objects in real time
-        % we have to subtract the red component 
-        % from the grayscale image to extract the red components in the image.
-        diff_im = imsubtract(data(:,:,1), rgb2gray(data));
-        %Use a median filter to filter out noise
-        diff_im = medfilt2(diff_im, [3 3]);
-        % Convert the resulting grayscale image into a binary image.
-        diff_im = im2bw(diff_im,0.25);
-        
-        % Remove all those pixels less than 300px
-        diff_im = bwareaopen(diff_im,300);
-        
-        % Label all the connected components in the image.
-        bw = bwlabel(diff_im, 8);
-        
-        % Here we do the image blob analysis.
-        % We get a set of properties for each labeled region.
-        stats = regionprops(bw, 'BoundingBox', 'Centroid');
-        
-        % Display the image
-        %imshow(data)
-        
-        % hold on
-
-                    %This is a loop to bound the red objects in a rectangular box.
-            for object = 1:length(stats)
-                bb = stats(object).BoundingBox;
-                bc = stats(object).Centroid;
-                rectangle('Position',bb,'EdgeColor','r','LineWidth',2)
-                plot(bc(1),bc(2), '-m+')
-                a=text(bc(1)+15,bc(2), strcat('X: ', num2str(round(bc(1))), '    Y: ', num2str(round(bc(2)))));
-                set(a, 'FontName', 'Arial', 'FontWeight', 'bold', 'FontSize', 12, 'Color', 'yellow');
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                bbox = bb
-                bboxPoints = bbox2points(bbox(1, :));
-        
-                % Convert the box corners into the [x1 y1 x2 y2 x3 y3 x4 y4]
-                % format required by insertShape.
-        
-                bboxPolygon = reshape(bboxPoints', 1, []);
-                center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
-        
-                detect_bbox_color = "green";
-                dists = get_distances(center, frame_middle);
-                % Display a bounding box around the detected face.
-                data2 = insertShape(data2, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
-                data2 = insertShape(data2, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
-                data2 = insertShape(data2, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");
-                delta_j1 = (frame_middle(1)-center(1))/100;
-                delta_j4 = (frame_middle(2)-center(2))/100; %distance from center to box
-        
-        
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-             
-        
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-                try
-                    robot.move_j(robot.joint_angles(1)+delta_j1,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-                    robot.move_j(robot.joint_angles(1),robot.joint_angles(2),robot.joint_angles(3)+delta_j4,robot.joint_angles(4));
-    
-                catch ME
-                    disp(ME.message);
-                end
-            %
-            end
-
-            % Display the annotated video frame using the video player object.
-            
-    % % %     step(videoPlayer, videoFrame);
-        step(videoPlayer, data2);
-    
-        % Check whether the video player window has been closed.
-        runLoop = isOpen(videoPlayer);
-        if ~runLoop
-            break
-        end
-
-        %flushdata(vid);
+     % Display the annotated video frame
+     % step(videoPlayer, img);
 end
 
-stop(vid);
-flushdata(vid);
-clearvars -global
-% Clean up.
-release(videoPlayer);
-%release(faceDetector);
-robot.disable_motors();
+% Subtraction red component from grayscale image to extract red
+diff_im = imsubtract(img2(:,:,1), rgb2gray(img2));
+%Use a median filter to filter out noise
+diff_im = medfilt2(diff_im, [3 3]);
+% Convert the resulting grayscale image into a binary image.
+diff_im = imbinarize(diff_im,0.25);
+% Remove all those pixels less than 50px
+diff_im = bwareaopen(diff_im,50);
+% Label all the connected components in the image
+bw = bwlabel(diff_im, 8);
+% Image blob analysis
+stats = regionprops(bw, 'BoundingBox', 'Centroid');
+for obj = 1:length(stats)
+     bbox = stats.BoundingBox;
 
+     if ~isempty(bbox)
+         % Display a bounding box around the detected red.
+         bboxPoints = bbox2points(bbox(1, :));
+         bboxPolygon = reshape(bboxPoints', 1, []);
+         center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
+         img2 = insertShape(img2, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
+         img2 = insertShape(img2, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
+         img2 = insertShape(img2, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");       
+     
+         distance_center = [abs(frame_middle(1)-center(1)), abs(frame_middle(2)-center(2))]
+     end
 
-
-function cw = jog_robot_z(cw,robot)
-    if robot.joint_angles(1) == -130
-        cw = 1;
-    elseif robot.joint_angles(1) == 130
-        cw = 0; 
-    end
-    
-    if ~cw
-       robot.move_j(robot.joint_angles(1)-10,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-    else
-        robot.move_j(robot.joint_angles(1)+10,robot.joint_angles(2),robot.joint_angles(3),robot.joint_angles(4));
-    end
-
+     % Display the annotated video frame
+     % step(videoPlayer, img);
 end
 
 
-function dists = get_distances(center, frame_middle)
-    x_dist = frame_middle(1) - center(1);
-    y_dist = frame_middle(2) - center(2);
-    dists = [x_dist,y_dist];
-end
+% Display stereo images
+figure;
+imshow(img);
+title('Image');
 
-function center = get_center(bboxPolygon)
-    x = floor((bboxPolygon(1) + bboxPolygon(3)) /2);
-    y = floor((bboxPolygon(2) + bboxPolygon(4)) /2);
-    center = [x,y];
+%im2
+figure;
 
-end
+imshow(img2);
+title('Image2');
 
-function inside = face_inside_bbox(center, frame_middle)
-    if abs(frame_middle(1) - center(1)) < frame_middle(1) && abs(frame_middle(2) - center(2)) < frame_middle(2)
-        inside = 1;
-    else
-        inside = 0;
+%im3
+figure;
+imshow(img3);
+title('Image3');
+
+%im4
+figure;
+
+imshow(img4);
+title('Image4');
+
+%im5
+figure;
+imshow(img5);
+title('Image5');
+
+
+%%%%%%%%%% CLEAN UP %%%%%%%%%%
+while true
+    if ~isOpen(videoPlayer)
+        stop(vid);
+        flushdata(vid);
+        clear vid;
+        clearvars -global
+        release(videoPlayer);
+        robot.move_j(0,-90,0,0);
+        robot.disable_motors();
+        clear all;
     end
 end
-
