@@ -10,11 +10,19 @@ videoPlayer = vision.VideoPlayer;
 % Init Robot
 robot = MyRobot();
 assert(robot.is_robot_connected(),"Robot not connected properly");
+
 %%%%%%%%%% IMAGE ACQUISITION %%%%%%%%%%
-robot.move_j(0,-30,-60,0);
+robot.move_j(0,0,-90,0);
 pause(2);
 %Pose = robot.joint_pos;
 img = getsnapshot(vid);
+pause(2);
+
+%image 2
+robot.move_j(-45,0,-90,0);
+pause(2);
+%Pose = robot.joint_pos;
+img2 = getsnapshot(vid);
 pause(2);
 
 %%%%%%%%%% RED RECOGNITION %%%%%%%%%%
@@ -37,7 +45,7 @@ stats = regionprops(bw, 'BoundingBox', 'Centroid');
 
 % Bound red objects in rectangular box
 for obj = 1:length(stats)
-     bbox = stats.BoundingBox;
+     bbox = stats(obj).BoundingBox;
 
      if ~isempty(bbox)
          % Display a bounding box around the detected red.
@@ -46,13 +54,10 @@ for obj = 1:length(stats)
          center = [bbox(1)+bbox(3)/2,bbox(2)+bbox(4)/2];
          img = insertShape(img, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
          img = insertShape(img, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
-         img = insertShape(img, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");       
-     
+         img = insertShape(img, 'Line',[frame_middle,center],'LineWidth', 5, 'Color',"red");
+
          distance_center = [abs(frame_middle(1)-center(1)), abs(frame_middle(2)-center(2))]
      end
-
-     % Display the annotated video frame
-     % step(videoPlayer, img);
 end
 
 % Display stereo images
@@ -61,15 +66,12 @@ imshow(img);
 title('Image');
 
 %%%%%%%%%% CLEAN UP %%%%%%%%%%
-while true
-    if ~isOpen(videoPlayer)
-        stop(vid);
-        flushdata(vid);
-        clear vid;
-        clearvars -global
-        release(videoPlayer);
-        robot.move_j(0,-90,0,0);
-        robot.disable_motors();
-        clear all;
-    end
-end
+pause(5);
+stop(vid);
+flushdata(vid);
+clear vid;
+clearvars -global
+release(videoPlayer);
+robot.move_j(0,-90,0,0);
+robot.disable_motors();
+clear all;
