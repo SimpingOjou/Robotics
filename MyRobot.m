@@ -69,7 +69,10 @@ classdef MyRobot < handle
         use_smooth_speed_flag = 0;                  % Flag for using smooth speed 
         gripper_open_flag = 1;                      % Flag for gripper status
         rbt = 0;                                    % RigidBodyTree        
-        joint_limits = [-210 55; -125 125; -125 125; -5 145]; %Joint Limits in degree        
+        joint_limits = [-210 55; 
+                        -125 125; 
+                        -125 125; 
+                        -10 145]; %Joint Limits in degree        
         ik = 0;                                     % Inverse Kinematics Object
         ik_weights = [0.25 0.25 0.25 1 1 1];        % Weights for inverse kinematics 
         %joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor. To calibrate
@@ -366,7 +369,7 @@ classdef MyRobot < handle
             %Outputs:
             %   deg : returns input value if checks pass [deg]
             if ismember(motor_id,self.motor_ids)
-                assert(deg >= self.joint_limits(motor_id,1) && deg <= self.joint_limits(motor_id,2),"Angle Limits for motor %s Axis Reached: %s",num2str(motor_id),num2str(self.joint_limits(2,:)));
+                assert(deg >= self.joint_limits(motor_id,1) && deg <= self.joint_limits(motor_id,2),"Angle Limits for motor %s Axis Reached: %s",num2str(motor_id),num2str(self.joint_limits(motor_id,:)));
             else
                 fprintf("Motor ID: %s not in known motor IDs: [%s]",num2str(motor_id), num2str(self.motor_ids));
             end
