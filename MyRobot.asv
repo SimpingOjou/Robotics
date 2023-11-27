@@ -58,10 +58,14 @@ classdef MyRobot < handle
     properties (Access=public)
         motor_ids = [1 2 3 4];                      % Motor IDs chronologically (see Dynamixel Wizard for more info)
         gripper_motor_id = 4                        % ID of gripper motor
-        dh = [0   	-pi/2	0.0955 0;               % Denavit Hartenberg Parameters for Robot (a, alpha, d, theta)
-            0.116	0       0       0;
-            0.096	0	0	0;
-            0.09611  	0	0	0];
+        % dh = [0   	-pi/2	0.0955 0;               % Denavit Hartenberg Parameters for Robot (a, alpha, d, theta)
+        %     0.116	0       0       0;
+        %     0.096	0	0	0;
+        %     0.09611  	0	0	0];
+        dh = [0         pi/2    50e-3   0;
+            0.93e-3     0       0       0;
+            0.93e-3     0       0       0;
+            50e-3       0       0       0;];
         forward_transform = zeros(4,4);             % Forward transformation Matrix        
         joint_angles = [0 0 0 0];                   % Internal joint angles in degree
         joint_pos = zeros(4,4);                     % Internal joint positions calculated with each move_j        
@@ -69,10 +73,10 @@ classdef MyRobot < handle
         use_smooth_speed_flag = 0;                  % Flag for using smooth speed 
         gripper_open_flag = 1;                      % Flag for gripper status
         rbt = 0;                                    % RigidBodyTree        
-        joint_limits = [-210 55; 
+        joint_limits = [-210 55;                    %Joint Limits in degree [j1 j2 j3 j4]
                         -125 125; 
                         -125 125; 
-                        -10 145]; %Joint Limits in degree        
+                        -10 145];         
         ik = 0;                                     % Inverse Kinematics Object
         ik_weights = [0.25 0.25 0.25 1 1 1];        % Weights for inverse kinematics 
         %joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor. To calibrate
@@ -369,7 +373,7 @@ classdef MyRobot < handle
             %Outputs:
             %   deg : returns input value if checks pass [deg]
             if ismember(motor_id,self.motor_ids)
-                assert(deg >= self.joint_limits(motor_id,1) && deg <= self.joint_limits(motor_id,2),"Angle Limits for motor %s Axis Reached: %s",num2str(motor_id),num2str(self.joint_limits(2,:)));
+                assert(deg >= self.joint_limits(motor_id,1) && deg <= self.joint_limits(motor_id,2),"Angle Limits for motor %s Axis Reached: %s",num2str(motor_id),num2str(self.joint_limits(motor_id,:)));
             else
                 fprintf("Motor ID: %s not in known motor IDs: [%s]",num2str(motor_id), num2str(self.motor_ids));
             end
@@ -513,25 +517,53 @@ classdef MyRobot < handle
             %   z : value for desired z position of the robot end effector
             %   [m]
             %   pitch : value for desired x position of the robot end
-            %   effector [deg]
+            %   effector [rad]
 
             %Outputs:
             %   j_a : a vector containing joint angles [deg]
             
-            j1 = atan2(y,x);
-            j3 = cos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
-            if ~isreal(j3) || ~(rad2deg(j3)>=self.joint_limits(3,1) && rad2deg(j3)<=self.joint_limits(3,2))
+            % j1 = atan2(y,x);
+            % j3 = cos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
+            % % j3 = cos(( sqrt(x^2+y^2)^2 + (z-self.dh(1,3))^2 - self.dh(2,1)^2 - self.dh(3,1)^2 ) / (2*self.dh(2,1)*self.dh(3,1)));
+            % if ~isreal(j3) || ~(rad2deg(j3)>=self.joint_limits(3,1) && rad2deg(j3)<=self.joint_limits(3,2))
+            %     fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
+            %     % j3 = atan2(j3,-sqrt(1-j3^2));
+            %     j3 = atan2(j3,sqrt(1-j3^2)); % testing elbow up
+            % end
+            % assert(isreal(j3),"Configuration Impossible");
+            % % j2 = atan2(s,r) = atan2(z-d-a*sin(pitch), )
+            % j2 = -atan2(z-self.dh(1,3)-self.dh(4,1)*sin(pitch),sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch)) - atan2(self.dh(3,1)+self.dh(2,1)*cos(j3),self.dh(2,1)*sin(j3)) + (pi/2-j3);
+            % % j2 = atan2(sqrt(x^2+y^2) , z-self.dh(1,3)) - atan2( self.dh(1,2)+self.dh(1,3)*cos(j3), self.dh(1,3)*sin(j3) );
+            % j4 = pitch - j2 - j3;
+            % 
+            % j_a = rad2deg([j1 j2 j3 j4]);
+            % self.pitch = rad2deg(pitch);
+            % %self.pitch = pitch;
+            % assert(isreal(j_a),"Configuration Impossible");
+            
+            j1 = atan2(y,x)
+
+            % j3
+            r = sqrt(x^2+y^2);
+            d_22 = self.dh(4,1)*sin(pitch);
+            r_22 = self.dh(4,1)*cos(pitch);
+            r_11 = r - r_22;
+            d_33 = z - self.dh(1,3) - d_22;
+            c_2 = sqrt(r_11^2+d_33^2);
+            D = (c_2^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (-2*self.dh(2,1)*self.dh(3,1));
+            if ~isreal(D) || ~(rad2deg(D)>=self.joint_limits(3,1) && rad2deg(D)<=self.joint_limits(3,2))
                 fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
-                j3 = atan2(j3,-sqrt(1-j3^2));
+                j3 = pi - atan2(-sqrt(1-D^2),D);
+                %j3 = atan2(j3,sqrt(1-j3^2)); % testing elbow up
             end
             assert(isreal(j3),"Configuration Impossible");
-            % j2 = atan2(s,r) = atan2(z-d-a*sin(pitch), )
-            j2 = -atan2(z-self.dh(1,3)-self.dh(4,1)*sin(pitch),sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch)) - atan2(self.dh(3,1)+self.dh(2,1)*cos(j3),self.dh(2,1)*sin(j3)) + (pi/2-j3);
-            j4 = pitch - j2 - j3;
-            
-            j_a = rad2deg([j1 j2 j3 j4]);
-            self.pitch = rad2deg(pitch);
-            assert(isreal(j_a),"Configuration Impossible");
+
+            % j2
+            j2 = atan2(d_33,r_11) - atan2(sin(j3) * self.dh(3,1), self.dh(2,1) + cos(j3) * self.dh(3,1));
+
+            % j4
+            j4 = 
+
         end
         
         function j_a = read_joint_angles(self)

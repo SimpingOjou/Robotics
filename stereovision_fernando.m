@@ -48,9 +48,9 @@ for obj = 1:length(stats)
 
          img = insertShape(img, 'Polygon', bboxPolygon, 'LineWidth', 3, 'Color',"blue");
          img = insertShape(img, 'Circle',[frame_middle,5],'LineWidth', 5, 'Color',"red");
-         img = insertShape(img, 'Line',[frame_middle,obj_size_px],'LineWidth', 5, 'Color',"red");       
+         img = insertShape(img, 'Line',[frame_middle, obj_size_px],'LineWidth', 5, 'Color',"red");       
      
-         distance_center_px = [abs(frame_middle(1)-(obj_size_px(1)/2)), abs(frame_middle(2)-(obj_size_px(2)/2))];
+         distance_center_px = [frame_middle(1)-(obj_size_px(1)/2), frame_middle(2)-(obj_size_px(2)/2)];
          
          %%%%%%%%%% PIXEL TO REAL WORLD CONVERSION %%%%%%%%%%
          % focal_length_px = 1430; % pixels
@@ -62,8 +62,8 @@ for obj = 1:length(stats)
 
          %%%%%%%%%% INVERSE KINEMATICS %%%%%%%%%%
          z = 0.12; % height from end effector
-         %                      z                   
-         robot.move_c(ee_pose(1)-0.05,ee_pose(2),ee_pose(3),0); % check xyz coordinates with robot.draw()
+         %                      z               x                          y         
+         robot.move_c(ee_pose(1)-0.05,ee_pose(2)+obj_distance_m(1),ee_pose(3)+obj_distance_m(2),-70); % check xyz coordinates with robot.draw()
          % In the line above I assumed X is horizontal, Y is vertical and Z
          % is depth
          pause(3);
