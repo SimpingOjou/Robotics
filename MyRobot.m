@@ -45,7 +45,7 @@ classdef MyRobot < handle
         ADDR_MX_PRESENT_POSITION    = 36;           % Control table address for reading current position
         PROTOCOL_VERSION            = 1.0;          % See which protocol version is used in the Dynamixel
         BAUDRATE                    = 1000000;      % Baudrate for Motors
-        DEVICENAME                  = 'COM3';       % Check which port is being used on your controller
+        DEVICENAME                  = 'COM5';       % Check which port is being used on your controller
         % ex) Windows: 'COM1'   Linux: '/dev/ttyUSB0' Mac: '/dev/tty.usbserial-*'
         TORQUE_ENABLE               = 1;            % Value for enabling the torque
         TORQUE_DISABLE              = 0;            % Value for disabling the torque
@@ -63,8 +63,8 @@ classdef MyRobot < handle
         %     0.096	0	0	0;
         %     0.09611  	0	0	0];
         dh = [0         pi/2    50e-3   0;
-            0.93e-3     0       0       0;
-            0.93e-3     0       0       0;
+            93e-3     0       0       0;
+            93e-3     0       0       0;
             50e-3       0       0       0;];
         forward_transform = zeros(4,4);             % Forward transformation Matrix        
         joint_angles = [0 0 0 0];                   % Internal joint angles in degree
@@ -80,7 +80,8 @@ classdef MyRobot < handle
         ik = 0;                                     % Inverse Kinematics Object
         ik_weights = [0.25 0.25 0.25 1 1 1];        % Weights for inverse kinematics 
         %joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor. To calibrate
-        joint_offsets = [240 150 150 150];
+        %joint_offsets = [240 150 150 150];          % Robot 3
+        joint_offsets = [240 150 150 60];          % Robot 1
         joint_angle_error = [0 0 0 0];              % Internal joint angle error between read out of joint angles and input joint angles
         init_status = 0;                            % Initialization succesfull flag
         movement_history = [];                      % List to record movement history
@@ -541,22 +542,22 @@ classdef MyRobot < handle
             % %self.pitch = pitch;
             % assert(isreal(j_a),"Configuration Impossible");
             
-            j1 = atan2(y,x)
+            j1 = atan2(y,x);
 
             % j3
-            r = sqrt(x^2+y^2);
+            r = sqrt(x^2+y^2)
             d_22 = self.dh(4,1)*sin(pitch);
             r_22 = self.dh(4,1)*cos(pitch);
             r_11 = r - r_22;
             d_33 = z - self.dh(1,3) - d_22;
             c_2 = sqrt(r_11^2+d_33^2);
             D = (c_2^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (-2*self.dh(2,1)*self.dh(3,1));
-            if ~isreal(D) || ~(rad2deg(D)>=self.joint_limits(3,1) && rad2deg(D)<=self.joint_limits(3,2))
-                fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
+            if isreal(D) || ~(rad2deg(D)>=self.joint_limits(3,1) && rad2deg(D)<=self.joint_limits(3,2))
+                fprintf("Choosing elbow down solution for j3: %s",num2str(D));
                 j3 = pi - atan2(-sqrt(1-D^2),D);
                 %j3 = atan2(j3,sqrt(1-j3^2)); % testing elbow up
             end
-            assert(isreal(j3),"Configuration Impossible");
+            assert(isreal(j3),"Configuration Impossible on j3");
 
             % j2
             j2 = atan2(d_33,r_11) - atan2(sin(j3) * self.dh(3,1), self.dh(2,1) + cos(j3) * self.dh(3,1));
@@ -564,7 +565,9 @@ classdef MyRobot < handle
             % j4
             j4 = pitch - j2 - j3;
             
-            j_a = rad2deg([j1 j2 j3 j4]);
+            j_a = rad2deg([j1 j2 j3 j4])
+            % j_a = [j_a(1)-180 j_a(2)+66.5604 j_a(3)-314.8344 j_a(4)+158.2740] % calibration to robot
+           
             self.pitch = rad2deg(pitch);
             assert(isreal(j_a),"Configuration Impossible");
         end
@@ -626,6 +629,30 @@ classdef MyRobot < handle
            self.move_j(j_a(1),j_a(2),j_a(3),j_a(4));
         end
         
+        function transform_ee_to_base (self,x_c,y_c,z_c,pitch)
+            j_a = deg2rad(self.read_joint_angles());
+            j1 = j_a(1);
+            j2 = j_a(2);
+            j3 = j_a(3);
+            j4 = j_a(4);
+            % from problem 2
+            sigma3 = cos(j2)+j3+j4;
+            sigma2 = sin(j2)+j3+j4;
+            sigma1 = 35e-3-45e-3*sigma2+93e-3*cos(j2)+j3+93e-3*cos(j2);
+            gamma = 93e-3*sin(j2) + j3 + 93e-3*sin(j2) + 5e-3*sqrt(130)*cos(j2) + j3 + j4 - atan2(7,9) + 50e-3;
+
+            T05 = [sigma3*cos(j1) -sigma2*cos(j1) sin(j1) sigma1*cos(j1);
+                sigma3*sin(j1)  -sigma2*sin(j1) -cos(j1)    sigma1*sin(j1);
+                sigma2                  sigma3              0           gamma;
+                    0                       0               0           1]
+            % T50 = inv(T05);
+            R05 = T05(1:end-1, 1:end-1)
+            o5 = T05(1:end-1,end)
+            p0 = R05*[x_c*1e-3 y_c*1e-3 z_c*1e-3]' + o5
+
+            self.move_c(p0(1),p0(2),p0(3),pitch);
+        end
+
         function record_configuration(self)
             %record_configuration function for the MyRobot Class.
             %   Records current robot configuration (joint angles, speed,

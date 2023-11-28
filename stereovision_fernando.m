@@ -36,7 +36,8 @@ bw = bwlabel(diff_im, 8);
 stats = regionprops(bw, 'BoundingBox', 'Centroid');
 
 % Bound red objects in rectangular box
-ee_pose = robot.read_ee_position() % reads position in cartesian
+ee_pose = robot.read_ee_position() % reads position in cartesian of end effector
+
 for obj = 1:length(stats)
      bbox = stats(obj).BoundingBox;
 
@@ -54,16 +55,17 @@ for obj = 1:length(stats)
          
          %%%%%%%%%% PIXEL TO REAL WORLD CONVERSION %%%%%%%%%%
          % focal_length_px = 1430; % pixels
-         % camera_height = 0.125; % meters
+         camera_height = 0.125; % meters
          % fov = 60 % degrees
 
          px_m_ratio = [0.135/x_res,0.095/y_res]; % whatever we find with the ruler on x and y
-         obj_distance_m = [distance_center_px(1)*px_m_ratio(1), distance_center_px(2)*px_m_ratio(2)]
+         obj_distance_m = [distance_center_px(1)*px_m_ratio(1), distance_center_px(2)*px_m_ratio(2), camera_height]
 
          %%%%%%%%%% INVERSE KINEMATICS %%%%%%%%%%
-         z = 0.12; % height from end effector
+         %z = 0.12; % height from end effector
          %                      z               x                          y         
-         robot.move_c(ee_pose(1)-0.05,ee_pose(2)+obj_distance_m(1),ee_pose(3)+obj_distance_m(2),-70); % check xyz coordinates with robot.draw()
+         %robot.move_c(ee_pose(1)-0.05,ee_pose(2)+obj_distance_m(1),ee_pose(3)+obj_distance_m(2),-70); % check xyz coordinates with robot.draw()
+         robot.transform_ee_to_base(obj_distance_m(3), obj_distance_m(1), obj_distance_m(2), 0)
          % In the line above I assumed X is horizontal, Y is vertical and Z
          % is depth
          pause(3);
