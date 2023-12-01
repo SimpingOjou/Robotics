@@ -65,7 +65,7 @@ for obj = 1:length(stats)
          %z = 0.12; % height from end effector
          %                      z               x                          y         
          %robot.move_c(ee_pose(1)-0.05,ee_pose(2)+obj_distance_m(1),ee_pose(3)+obj_distance_m(2),-70); % check xyz coordinates with robot.draw()
-         robot.transform_ee_to_base(obj_distance_m(3), obj_distance_m(1), obj_distance_m(2), 0)
+         robot.transform_ee_to_base(ee_pose(1)+obj_distance_m(3), ee_pose(2)+obj_distance_m(1), ee_pose(3)+obj_distance_m(2), -175)
          % In the line above I assumed X is horizontal, Y is vertical and Z
          % is depth
          pause(3);
