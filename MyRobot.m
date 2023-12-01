@@ -45,7 +45,7 @@ classdef MyRobot < handle
         ADDR_MX_PRESENT_POSITION    = 36;           % Control table address for reading current position
         PROTOCOL_VERSION            = 1.0;          % See which protocol version is used in the Dynamixel
         BAUDRATE                    = 1000000;      % Baudrate for Motors
-        DEVICENAME                  = 'COM5';       % Check which port is being used on your controller
+        DEVICENAME                  = 'COM3';       % Check which port is being used on your controller
         % ex) Windows: 'COM1'   Linux: '/dev/ttyUSB0' Mac: '/dev/tty.usbserial-*'
         TORQUE_ENABLE               = 1;            % Value for enabling the torque
         TORQUE_DISABLE              = 0;            % Value for disabling the torque
@@ -80,8 +80,8 @@ classdef MyRobot < handle
         ik = 0;                                     % Inverse Kinematics Object
         ik_weights = [0.25 0.25 0.25 1 1 1];        % Weights for inverse kinematics 
         %joint_offsets = [171-5 150+90 150 150];     % Joint offsets to send to motor. To calibrate
-        %joint_offsets = [240 150 150 150];          % Robot 3
-        joint_offsets = [240 150 150 60];          % Robot 1
+        joint_offsets = [240 150 150 150];          % Robot 3
+        %joint_offsets = [240 150 150 60];          % Robot 1
         joint_angle_error = [0 0 0 0];              % Internal joint angle error between read out of joint angles and input joint angles
         init_status = 0;                            % Initialization succesfull flag
         movement_history = [];                      % List to record movement history
@@ -560,8 +560,8 @@ classdef MyRobot < handle
             y_c = x_c*tan(j1);
 
             r = sqrt(x_c^2 + y_c^2);
-            s = z_c - self.dh(1,3)
-            j3 = acos((r^2+s^2-self.dh(2,1)^2-self.dh(3,1)^2) / 2* self.dh(2,1)*self.dh(3,1))
+            s = z_c - self.dh(1,3);
+            j3 = -acos((r^2+s^2-self.dh(2,1)^2-self.dh(3,1)^2) / 2* self.dh(2,1)*self.dh(3,1));
             j2 = -(atan2(r,s)-atan2(self.dh(2,1)+self.dh(3,1)*cos(j3),self.dh(3,1)*sin(j3)));
             % j4
             j4 = pitch - j2 - j3;
@@ -635,22 +635,26 @@ classdef MyRobot < handle
             j2 = j_a(2);
             j3 = j_a(3);
             j4 = j_a(4);
+            ee_pose = self.read_ee_position() % z,x,y
+
             % from problem 2
-            sigma3 = cos(j2)+j3+j4;
-            sigma2 = sin(j2)+j3+j4;
-            sigma1 = 35e-3-45e-3*sigma2+93e-3*cos(j2)+j3+93e-3*cos(j2);
-            gamma = 93e-3*sin(j2) + j3 + 93e-3*sin(j2) + 5e-3*sqrt(130)*cos(j2) + j3 + j4 - atan2(7,9) + 50e-3;
+            sigma3 = cos(j2+j3+j4);
+            sigma1 = sin(j2+j3+j4);
+            sigma2 = -45e-3*sigma3 + 35e-3*sigma3 + 93e-3*(cos(j2) + cos(j2+j3));
+            gamma = 35e-3*sigma2 + 45e-3*sigma3 + 93e-3*(sin(j2) + sin(j2+j3)) + 50e-3;
 
-            T05 = [sigma3*cos(j1) -sigma2*cos(j1) sin(j1) sigma1*cos(j1);
-                sigma3*sin(j1)  -sigma2*sin(j1) -cos(j1)    sigma1*sin(j1);
-                sigma2                  sigma3              0           gamma;
-                    0                       0               0           1]
+            T05 = [sigma3*cos(j1) -sigma1*cos(j1) sin(j1) sigma2*cos(j1);
+                sigma3*sin(j1)  -sigma1*sin(j1) -cos(j1)    sigma2*sin(j1);
+                sigma1                  sigma3              0           gamma;
+                    0                       0               0           1];
             % T50 = inv(T05);
-            R05 = T05(1:end-1, 1:end-1)
-            o5 = T05(1:end-1,end)
-            p0 = R05*[x_c*1e-3 y_c*1e-3 z_c*1e-3]' + o5
+            R05 = T05(1:end-1, 1:end-1);
+            o5 = T05(1:end-1,end);
+            p0 = R05*[x_c y_c z_c]' + o5
+            
+            coordinates = [p0(1)+ee_pose(1),p0(2)+ee_pose(2),p0(3)+ee_pose(3)]
 
-            self.move_c(p0(1),p0(2),p0(3),pitch);
+            self.move_c(coordinates(1), coordinates(2), coordinates(3),pitch);
         end
 
         function record_configuration(self)
