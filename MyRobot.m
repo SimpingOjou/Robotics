@@ -524,36 +524,6 @@ classdef MyRobot < handle
             %   j_a : a vector containing joint angles [deg]
             
             j1 = atan2(y,x);
-            % j3 = cos( ((sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch))^2 + (self.dh(1,3)-z)^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (2*self.dh(2,1)*self.dh(3,1)) );
-            % % j3 = cos(( sqrt(x^2+y^2)^2 + (z-self.dh(1,3))^2 - self.dh(2,1)^2 - self.dh(3,1)^2 ) / (2*self.dh(2,1)*self.dh(3,1)));
-            % if ~isreal(j3) || ~(rad2deg(j3)>=self.joint_limits(3,1) && rad2deg(j3)<=self.joint_limits(3,2))
-            %     fprintf("Choosing elbow down solution for j3: %s",num2str(j3));
-            %     % j3 = atan2(j3,-sqrt(1-j3^2));
-            %     j3 = atan2(j3,sqrt(1-j3^2)); % testing elbow up
-            % end
-            % assert(isreal(j3),"Configuration Impossible");
-            % % j2 = atan2(s,r) = atan2(z-d-a*sin(pitch), )
-            % j2 = -atan2(z-self.dh(1,3)-self.dh(4,1)*sin(pitch),sqrt(x^2+y^2)-self.dh(4,1)*cos(pitch)) - atan2(self.dh(3,1)+self.dh(2,1)*cos(j3),self.dh(2,1)*sin(j3)) + (pi/2-j3);
-            % % j2 = atan2(sqrt(x^2+y^2) , z-self.dh(1,3)) - atan2( self.dh(1,2)+self.dh(1,3)*cos(j3), self.dh(1,3)*sin(j3) );
-
-            % % j3 (LUCAS)
-            % r = sqrt(x^2+y^2)
-            % d_22 = self.dh(4,1)*sin(pitch);
-            % r_22 = self.dh(4,1)*cos(pitch);
-            % r_11 = r - r_22;
-            % d_33 = z - self.dh(1,3) - d_22;
-            % c_2 = sqrt(r_11^2+d_33^2);
-            % D = (c_2^2 - self.dh(2,1)^2 - self.dh(3,1)^2) / (-2*self.dh(2,1)*self.dh(3,1));
-            % if isreal(D) || ~(rad2deg(D)>=self.joint_limits(3,1) && rad2deg(D)<=self.joint_limits(3,2))
-            %     fprintf("Choosing elbow down solution for j3: %s",num2str(D));
-            %     j3 = pi - atan2(-sqrt(1-D^2),D);
-            %     %j3 = atan2(j3,sqrt(1-j3^2)); % testing elbow up
-            % end
-            % assert(isreal(j3),"Configuration Impossible on j3");
-            % 
-            % % j2 (LUCAS)
-            % j2 = atan2(d_33,r_11) - atan2(sin(j3) * self.dh(3,1), self.dh(2,1) + cos(j3) * self.dh(3,1));
-
             cameraPos = 17e-3;
             z_c = z + cameraPos*sin(pitch);
             x_c = x - cameraPos*cos(pitch)*cos(j1);
@@ -567,7 +537,6 @@ classdef MyRobot < handle
             j4 = pitch - j2 - j3;
             
             j_a = rad2deg([j1 j2 j3 j4])
-            % j_a = [j_a(1)-180 j_a(2)+66.5604 j_a(3)-314.8344 j_a(4)+158.2740] % calibration to robot
             self.pitch = rad2deg(pitch);
             assert(isreal(j_a),"Configuration Impossible");
         end
